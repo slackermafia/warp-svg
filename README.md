@@ -4,7 +4,7 @@
 
 ## Overview
 
-A powerful online tool that allows you to warp 🌀, bend, and distort SVG files using mesh transformations. This application is specifically designed for converting fonts into visually striking mesh-based warped effects, making it perfect for creative typography and graphic design projects.
+A powerful online tool that allows you to warp 🌀, bend, and distort SVG files and fonts using mesh transformations. This application is forked specifically for converting fonts into mesh-based warped effects, making it perfect for creative typography and graphic design projects.
 
 ## Font Mesh Transformation
 
@@ -25,7 +25,7 @@ You can use Figma online tool to prepare your SVG file.
 ## Setup & Installation
 
 ### Prerequisites
-- Node.js 16+ (tested with Node.js 22)
+- Node.js 22
 - npm or yarn
 
 ### Installation Steps
