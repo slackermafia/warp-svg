@@ -137,6 +137,11 @@ const config = function (env, args) {
           to: path.resolve(__dirname, 'dist', 'images'),
           toType: 'dir',
         },
+        {
+          from: path.resolve(__dirname, 'public'),
+          to: path.resolve(__dirname, 'dist'),
+          toType: 'dir',
+        },
       ]),
     ],
   };

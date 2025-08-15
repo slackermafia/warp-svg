@@ -12,6 +12,7 @@ import toggleControls from "./chunks/toggleControls";
 import changeTheme from "./chunks/changeTheme";
 import iterpritateSmoothness from "./chunks/iterpritateSmoothness";
 import loader from "./chunks/loader";
+import fontToSVG from "./chunks/fontToSVG";
 
 import { testSVG } from "./chunks/svg-test-string";
 
@@ -27,6 +28,7 @@ gsap.registerPlugin(Draggable);
 let svgString = testSVG;
 let zoom = 1;
 const draggableControlPonts = [];
+let currentControlPoints = null; // Store current control points to preserve during settings changes
 
 const app = document.getElementById("app");
 const svgContainer = document.getElementById("svg-container");
@@ -79,7 +81,7 @@ function parseSVGString(svgString) {
 /// /////////////////////////////////////////////////////////////////
 /// ///////////////////// Initial function //////////////////////////
 /// /////////////////////////////////////////////////////////////////
-function init(firstInit = false) {
+function init(firstInit = false, preserveControlPoints = false) {
   const controlPath = document.getElementById("control-path");
   parseSVGString(svgString);
   zoomElement.style.transform = "scale(1)";
@@ -90,11 +92,19 @@ function init(firstInit = false) {
   warp.interpolate(interpolationLevel);
 
   // Start with a rectangle, then distort it later
-  let controlPoints = generateMeshPoints(
-    width,
-    height,
-    Number(complexityLevel)
-  );
+  let controlPoints;
+  
+  if (preserveControlPoints && currentControlPoints && currentControlPoints.length > 0) {
+    // Use existing control points if preserving
+    controlPoints = [...currentControlPoints];
+  } else {
+    // Generate new control points
+    controlPoints = generateMeshPoints(
+      width,
+      height,
+      Number(complexityLevel)
+    );
+  }
 
   // Compute weights from control points
   warp.transform(function (v0, V = controlPoints) {
@@ -184,12 +194,32 @@ function init(firstInit = false) {
     Draggable.create(point, {
       type: "x,y",
       onDrag: function () {
-        const relativeX =
+        let relativeX =
           (this.pointerX - svgControl.getBoundingClientRect().left) / zoom;
-        const relativeY =
+        let relativeY =
           (this.pointerY - svgControl.getBoundingClientRect().top) / zoom;
 
+        // Snapping logic - snap to other points if within threshold
+        const snapThreshold = 10 / zoom; // Adjust snap sensitivity
+        
+        for (let i = 0; i < controlPoints.length; i++) {
+          if (i !== index) { // Don't snap to self
+            const otherPoint = controlPoints[i];
+            
+            // Horizontal snapping
+            if (Math.abs(relativeX - otherPoint[0]) < snapThreshold) {
+              relativeX = otherPoint[0];
+            }
+            
+            // Vertical snapping
+            if (Math.abs(relativeY - otherPoint[1]) < snapThreshold) {
+              relativeY = otherPoint[1];
+            }
+          }
+        }
+
         controlPoints[index] = [relativeX, relativeY];
+        currentControlPoints = [...controlPoints]; // Store current state
         drawControlShape();
         warp.transform(reposition);
       },
@@ -224,6 +254,9 @@ function init(firstInit = false) {
   drawControlShape();
   drawControlPoints();
   warp.transform(reposition);
+  
+  // Store current control points for preservation
+  currentControlPoints = [...controlPoints];
 }
 
 /// //////
@@ -235,6 +268,83 @@ const createNewControlPath = () => {
   );
   newControlPath.setAttributeNS(null, "id", "control-path");
   svgControl.appendChild(newControlPath);
+};
+
+/// Update smoothness without recreating mesh
+const updateSmoothness = () => {
+  if (!currentControlPoints || currentControlPoints.length === 0) {
+    // If no control points exist, do full init
+    init();
+    return;
+  }
+
+  // Only re-interpolate the SVG without changing control points
+  const warp = new Warp(svgElement);
+  warp.interpolate(interpolationLevel);
+  
+  // Use existing control points
+  const controlPoints = [...currentControlPoints];
+  
+  // Compute weights from existing control points
+  warp.transform(function (v0, V = controlPoints) {
+    const A = [];
+    const W = [];
+    const L = [];
+
+    // Find angles
+    for (let i = 0; i < V.length; i++) {
+      const j = (i + 1) % V.length;
+
+      const vi = V[i];
+      const vj = V[j];
+
+      const r0i = Math.sqrt((v0[0] - vi[0]) ** 2 + (v0[1] - vi[1]) ** 2);
+      const r0j = Math.sqrt((v0[0] - vj[0]) ** 2 + (v0[1] - vj[1]) ** 2);
+      const rij = Math.sqrt((vi[0] - vj[0]) ** 2 + (vi[1] - vj[1]) ** 2);
+
+      const dn = 2 * r0i * r0j;
+      const r = (r0i ** 2 + r0j ** 2 - rij ** 2) / dn;
+
+      A[i] = isNaN(r) ? 0 : Math.acos(Math.max(-1, Math.min(r, 1)));
+    }
+
+    // Find weights
+    for (let j = 0; j < V.length; j++) {
+      const i = (j > 0 ? j : V.length) - 1;
+
+      const vj = V[j];
+
+      const r = Math.sqrt((vj[0] - v0[0]) ** 2 + (vj[1] - v0[1]) ** 2);
+
+      W[j] = (Math.tan(A[i] / 2) + Math.tan(A[j] / 2)) / r;
+    }
+
+    // Normalise weights
+    const Ws = W.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < V.length; i++) {
+      L[i] = W[i] / Ws;
+    }
+
+    // Save weights to the point for use when transforming
+    return [...v0, ...L];
+  });
+
+  // Warp function
+  function reposition([x, y, ...W], V = controlPoints) {
+    let nx = 0;
+    let ny = 0;
+
+    // Recreate the points using mean value coordinates
+    for (let i = 0; i < V.length; i++) {
+      nx += W[i] * V[i][0];
+      ny += W[i] * V[i][1];
+    }
+
+    return [nx, ny, ...W];
+  }
+
+  // Apply the warp with existing control points
+  warp.transform(reposition);
 };
 
 /// //////
@@ -266,9 +376,23 @@ document.addEventListener("wheel", function (e) {
 actions.meshComplexity.addEventListener(
   "change",
   (e) => {
-    complexityLevel = e.target.value;
-    createNewControlPath();
-    init();
+    const newComplexity = e.target.value;
+    const oldComplexity = complexityLevel;
+    
+    // Check if we actually need to change the mesh structure
+    const oldPoints = generateMeshPoints(width, height, Number(oldComplexity)).length;
+    const newPoints = generateMeshPoints(width, height, Number(newComplexity)).length;
+    
+    complexityLevel = newComplexity;
+    
+    // If the number of points is the same, just update without recreating
+    if (oldPoints === newPoints && currentControlPoints && currentControlPoints.length > 0) {
+      updateSmoothness(); // Just reapply current warp
+    } else {
+      // Different number of points required - need to recreate mesh
+      createNewControlPath();
+      init(false, false);
+    }
   },
   false
 );
@@ -288,11 +412,20 @@ actions.meshInterpolation.addEventListener(
   "change",
   (e) => {
     interpolationLevel = iterpritateSmoothness(e.target.value);
-    createNewControlPath();
-    init();
+    // For smoothness changes, we only need to re-interpolate, not recreate the mesh
+    updateSmoothness();
   },
   false
 );
+
+// Initialize font to SVG functionality
+const fontToSVGHandler = fontToSVG((newSvgString) => {
+  // This callback is called when a new SVG is generated from font
+  // Update the main SVG string and reinitialize the warp
+  svgString = newSvgString;
+  createNewControlPath();
+  init();
+});
 
 // Initial calling
 changeTheme();

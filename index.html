@@ -56,7 +56,6 @@
 
     <div class="actions">
       <div class="content-block" id="info-block">
-        <div class="close-btn"></div>
         <h3>How To Use:</h3>
         <ul>
           <li>
@@ -101,7 +100,6 @@
       </div>
 
       <div class="content-block" id="settings-block">
-        <div class="close-btn"></div>
         <h3>Settings:</h3>
         <div class="range-selector">
           <label for="mesh-complexity">Mesh complexity</label>
@@ -117,16 +115,33 @@
           <label for="show-original-box-btn">Show original box</label>
         </div>
       </div>
+
+      <div class="content-block" id="font-block">
+        <h3>Font to SVG:</h3>
+        <div class="font-input-group">
+          <label for="font-text-input">Text to convert:</label>
+          <input id="font-text-input" type="text" placeholder="Enter text..." value="Warp" maxlength="50" />
+        </div>
+        <div class="range-selector">
+          <label for="font-size-slider">Font size</label>
+          <input id="font-size-slider" type="range" min="50" max="300" step="10" value="100" />
+          <span id="font-size-value">100px</span>
+        </div>
+        <div class="font-input-group">
+          <label for="font-color-picker">Font color:</label>
+          <input id="font-color-picker" type="color" value="#000000" />
+        </div>
+        <div class="font-actions">
+          <button id="load-font-btn" class="secondary-btn">Load Font</button>
+          <input id="load-font-input" type="file" accept=".ttf,.otf,.woff,.woff2" style="display: none;" />
+          <button id="use-sample-font-btn" class="secondary-btn">Use Sample Font</button>
+          <button id="convert-font-btn" class="primary-btn" disabled>Convert to SVG</button>
+        </div>
+        <div id="font-info" style="display: none;">
+          <small id="font-details"></small>
+        </div>
+      </div>
       <div class="action-buttons">
-        <button id="show-info" class="secondary-btn active">
-          i
-        </button>
-        <button id="show-settings" class="secondary-btn active">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" stroke="none">
-            <path
-              d="M9 3C7.13616 3 5.57006 4.27477 5.12602 6L2 6V8H5.12602C5.57006 9.72523 7.13616 11 9 11C10.8638 11 12.4299 9.72523 12.874 8H22V6L12.874 6C12.4299 4.27477 10.8638 3 9 3ZM7 7C7 8.10457 7.89543 9 9 9C10.1046 9 11 8.10457 11 7C11 5.89543 10.1046 5 9 5C7.89543 5 7 5.89543 7 7Z M11.126 18H2V16H11.126C11.5701 14.2748 13.1362 13 15 13C16.8638 13 18.4299 14.2748 18.874 16H22V18H18.874C18.4299 19.7252 16.8638 21 15 21C13.1362 21 11.5701 19.7252 11.126 18ZM15 19C13.8954 19 13 18.1046 13 17C13 15.8954 13.8954 15 15 15C16.1046 15 17 15.8954 17 17C17 18.1046 16.1046 19 15 19Z" />
-          </svg>
-        </button>
         <button id="load-svg-btn" type="file" multiple="false" accept="image/svg" class="secondary-btn">
           Load SVG
         </button>
